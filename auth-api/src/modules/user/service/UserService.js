@@ -27,15 +27,16 @@ class UserService {
         message: err.message
       }
     }
-
   }
 
   async findByEmail(req) {
     try {
       const { email } = req.params
+      const { authUser } = req;
       this.validateRequest(email)
       const user = await UserRepository.findByEmail(email)
       this.valdiateResponse(user)
+      this.validateCurrentUser(user, authUser)
       return {
         status: httpStatus.SUCCESS,
         user: {
@@ -62,6 +63,12 @@ class UserService {
   valdiateResponse(user) {
     if (!user) {
       throw new UserException(httpStatus.NOT_FOUND, "User not found!")
+    }
+  }
+
+  validateCurrentUser(user, authUser) {
+    if (!authUser || user.id !== authUser.id) {
+      throw new UserException(httpStatus.FORBIDDEN, "Fobbiden request!")
     }
   }
 

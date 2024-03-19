@@ -10,6 +10,11 @@ export default async function createInitialData() {
       email: "admin@gmail.com",
       password
     })
+    await User.create({
+      name: "user",
+      email: "user@gmail.com",
+      password
+    })
   } catch (err) {
     console.error(err.message)
   }
