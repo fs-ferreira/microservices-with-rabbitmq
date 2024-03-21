@@ -3,3 +3,20 @@ server:
 
 spring:
   application: product-api
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5433/product_db
+    username: ${USER_DB}
+    password: ${PASSWORD_DB}
+    initialization-mode: always
+    initialize: true
+    continue-on-error: true
+    platform: postgresql
+    maxActive: 3
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+      format_sql: true
+    show_sql: true
