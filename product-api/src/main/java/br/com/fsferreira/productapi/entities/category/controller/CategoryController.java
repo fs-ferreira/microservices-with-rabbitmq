@@ -4,10 +4,11 @@ import br.com.fsferreira.productapi.entities.category.dto.CategoryRequestInput;
 import br.com.fsferreira.productapi.entities.category.dto.CategoryResponseOutput;
 import br.com.fsferreira.productapi.entities.category.service.CategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/category")
@@ -26,9 +27,26 @@ public class CategoryController {
         return service.findById(id);
     }
 
+    @GetMapping("/name")
+    public List<CategoryResponseOutput> findByName(@RequestParam String name) {
+        return service.findByName(name);
+    }
+
     @PostMapping
     public CategoryResponseOutput save(@RequestBody CategoryRequestInput input) {
         return service.save(input);
     }
+
+    @PutMapping("/{id}")
+    public CategoryResponseOutput update(@PathVariable(name = "id") String id, @RequestBody CategoryRequestInput input) {
+        return service.update(id, input);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> delete(@PathVariable(name = "id") String id) {
+        service.delete(id);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
 
 }

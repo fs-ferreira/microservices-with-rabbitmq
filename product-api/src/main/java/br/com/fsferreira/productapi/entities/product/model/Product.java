@@ -4,6 +4,7 @@ import br.com.fsferreira.productapi.entities.category.dto.CategoryRequestInput;
 import br.com.fsferreira.productapi.entities.category.dto.CategoryResponseOutput;
 import br.com.fsferreira.productapi.entities.category.model.Category;
 import br.com.fsferreira.productapi.entities.product.dto.ProductRequestInput;
+import br.com.fsferreira.productapi.entities.product.dto.ProductResponseOutput;
 import br.com.fsferreira.productapi.entities.supplier.dto.SupplierResponseOutput;
 import br.com.fsferreira.productapi.entities.supplier.model.Supplier;
 import jakarta.persistence.*;
@@ -92,6 +93,7 @@ public class Product {
     public int hashCode() {
         return Objects.hash(id, name, category, supplier, amount);
     }
+
     @Override
     public String toString() {
         return "Product{" +
@@ -112,7 +114,16 @@ public class Product {
                 .build();
     }
 
-    public static class ProductBuilder{
+    public static Product of(ProductResponseOutput product,
+                             CategoryResponseOutput category,
+                             SupplierResponseOutput supplier) {
+        return new ProductBuilder(product.getId(), product.getName(), product.getAmount())
+                .setCategory(category)
+                .setSupplier(supplier)
+                .build();
+    }
+
+    public static class ProductBuilder {
         private final UUID id;
         private final String name;
         private Category category;
@@ -136,7 +147,8 @@ public class Product {
             BeanUtils.copyProperties(supplier, this.supplier);
             return this;
         }
-        public Product build(){
+
+        public Product build() {
             return new Product(this);
         }
 

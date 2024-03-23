@@ -1,13 +1,18 @@
 package br.com.fsferreira.productapi.entities.supplier.service;
 
 import br.com.fsferreira.productapi.config.exception.GenericNotFoundException;
+import br.com.fsferreira.productapi.config.exception.GenericServerException;
 import br.com.fsferreira.productapi.config.exception.GenericUserException;
 import br.com.fsferreira.productapi.config.validators.TypeValidator;
 import br.com.fsferreira.productapi.entities.supplier.dto.SupplierRequestInput;
 import br.com.fsferreira.productapi.entities.supplier.dto.SupplierResponseOutput;
 import br.com.fsferreira.productapi.entities.supplier.model.Supplier;
+import br.com.fsferreira.productapi.entities.supplier.dto.SupplierRequestInput;
+import br.com.fsferreira.productapi.entities.supplier.dto.SupplierResponseOutput;
+import br.com.fsferreira.productapi.entities.supplier.model.Supplier;
 import br.com.fsferreira.productapi.entities.supplier.repository.SupplierRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -33,8 +38,27 @@ public class SupplierService {
     @Transactional
     public SupplierResponseOutput save(SupplierRequestInput input){
         validateSupplierName(input);
-        var category = repository.save(Supplier.of(input));
-        return SupplierResponseOutput.of(category);
+        var supplier = repository.save(Supplier.of(input));
+        return SupplierResponseOutput.of(supplier);
+    }
+
+    @Transactional
+    public SupplierResponseOutput update(String id, SupplierRequestInput input) {
+        validateSupplierName(input);
+        var supplier = findById(id);
+        BeanUtils.copyProperties(input, supplier);
+        var response = repository.save(Supplier.of(supplier));
+        return SupplierResponseOutput.of(response);
+    }
+
+    @Transactional
+    public void delete(String id) {
+        try {
+            var supplier = findById(id);
+            repository.delete(Supplier.of(supplier));
+        } catch (IllegalArgumentException exception) {
+            throw new GenericServerException("Fail to delete the supplier!");
+        }
     }
 
     private void validateSupplierName(SupplierRequestInput input) {

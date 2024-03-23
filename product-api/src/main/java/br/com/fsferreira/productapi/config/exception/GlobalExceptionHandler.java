@@ -17,6 +17,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(details, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(GenericServerException.class)
+    public ResponseEntity<?> handleServerException(GenericServerException serverException){
+        var details = new Exception();
+        details.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        details.setMessage(serverException.getMessage());
+
+        return new ResponseEntity<>(details, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+
     @ExceptionHandler(GenericNotFoundException.class)
     public ResponseEntity<?> handleNotFoundException(GenericNotFoundException notFoundException){
         var details = new Exception();

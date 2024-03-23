@@ -1,6 +1,7 @@
 package br.com.fsferreira.productapi.entities.category.model;
 
 import br.com.fsferreira.productapi.entities.category.dto.CategoryRequestInput;
+import br.com.fsferreira.productapi.entities.category.dto.CategoryResponseOutput;
 import jakarta.persistence.*;
 import org.springframework.beans.BeanUtils;
 
@@ -63,6 +64,12 @@ public class Category {
                 '}';
     }
     public static Category of(CategoryRequestInput category) {
+        var request = new Category();
+        BeanUtils.copyProperties(category, request);
+        return  request;
+    }
+
+    public static Category of(CategoryResponseOutput category) {
         var request = new Category();
         BeanUtils.copyProperties(category, request);
         return  request;

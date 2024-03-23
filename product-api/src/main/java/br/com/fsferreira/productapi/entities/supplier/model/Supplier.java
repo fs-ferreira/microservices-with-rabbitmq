@@ -1,6 +1,7 @@
 package br.com.fsferreira.productapi.entities.supplier.model;
 
 import br.com.fsferreira.productapi.entities.supplier.dto.SupplierRequestInput;
+import br.com.fsferreira.productapi.entities.supplier.dto.SupplierResponseOutput;
 import jakarta.persistence.*;
 import org.springframework.beans.BeanUtils;
 
@@ -61,6 +62,12 @@ public class Supplier {
                 '}';
     }
     public static Supplier of(SupplierRequestInput input) {
+        var request = new Supplier();
+        BeanUtils.copyProperties(input, request);
+        return  request;
+    }
+
+    public static Supplier of(SupplierResponseOutput input) {
         var request = new Supplier();
         BeanUtils.copyProperties(input, request);
         return  request;
