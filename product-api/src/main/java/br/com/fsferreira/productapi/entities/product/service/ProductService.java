@@ -3,24 +3,20 @@ package br.com.fsferreira.productapi.entities.product.service;
 import br.com.fsferreira.productapi.config.exception.GenericNotFoundException;
 import br.com.fsferreira.productapi.config.exception.GenericServerException;
 import br.com.fsferreira.productapi.config.exception.GenericUserException;
-import br.com.fsferreira.productapi.config.validators.TypeValidator;
-import br.com.fsferreira.productapi.entities.category.model.Category;
+import br.com.fsferreira.productapi.config.validator.TypeValidator;
 import br.com.fsferreira.productapi.entities.category.service.CategoryService;
 import br.com.fsferreira.productapi.entities.product.dto.ProductRequestInput;
 import br.com.fsferreira.productapi.entities.product.dto.ProductResponseOutput;
 import br.com.fsferreira.productapi.entities.product.model.Product;
 import br.com.fsferreira.productapi.entities.product.repository.ProductRepository;
-import br.com.fsferreira.productapi.entities.supplier.dto.SupplierRequestInput;
-import br.com.fsferreira.productapi.entities.supplier.dto.SupplierResponseOutput;
-import br.com.fsferreira.productapi.entities.supplier.model.Supplier;
 import br.com.fsferreira.productapi.entities.supplier.service.SupplierService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class ProductService {
@@ -75,7 +71,7 @@ public class ProductService {
         }
     }
 
-    private void validateProduct(ProductRequestInput input) {
+    private void validateProduct(@NonNull ProductRequestInput input) {
         if (input.getName() == null || input.getName().isEmpty()) {
             throw new GenericUserException("Product's name not informed!");
         }

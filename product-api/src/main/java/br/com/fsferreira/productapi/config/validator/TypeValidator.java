@@ -1,4 +1,4 @@
-package br.com.fsferreira.productapi.config.validators;
+package br.com.fsferreira.productapi.config.validator;
 
 import br.com.fsferreira.productapi.config.exception.GenericUserException;
 
