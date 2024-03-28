@@ -153,4 +153,8 @@ public class Product {
         }
 
     }
+
+    public void updateStock(Integer saleAmount) {
+        amount = amount - saleAmount;
+    }
 }

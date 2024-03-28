@@ -2,7 +2,11 @@ server:
   port: ${PORT:8081}
 
 spring:
-  application: product-api
+  main:
+    allow-bean-definition-overriding: true
+
+  application:
+    name: product-api
 
   datasource:
     driver-class-name: org.postgresql.Driver
@@ -21,6 +25,27 @@ spring:
       format_sql: true
     show_sql: true
 
+    rabbitmq:
+      host: ${RABBIT_MQ_HOST:localhost}
+      port: ${RABBIT_MQ_PORT:5672}
+      username: ${RABBIT_MQ_USER}
+      password: ${RABBIT_MQ_PASSWORD}
+
 app-config:
+  services:
+    sale: http://${SALES_HOST:localhost}:${SALES_PORT:8082}
+
   secrets:
     api-secret: ${API_SECRET}
+
+  rabbit:
+    exchange:
+      product: product.topic
+
+    routingKey:
+      product-stock: product-stock-update.routingKey
+      sales-confirmation: sales-confirmation.routingKey
+
+    queue:
+      product-stock: product-stock-update.queue
+      sales-confirmation: sales-confirmation.queue

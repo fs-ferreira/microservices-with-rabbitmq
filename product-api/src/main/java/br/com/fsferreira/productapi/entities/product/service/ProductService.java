@@ -5,21 +5,32 @@ import br.com.fsferreira.productapi.config.exception.GenericServerException;
 import br.com.fsferreira.productapi.config.exception.GenericUserException;
 import br.com.fsferreira.productapi.config.validator.TypeValidator;
 import br.com.fsferreira.productapi.entities.category.service.CategoryService;
-import br.com.fsferreira.productapi.entities.product.dto.ProductRequestInput;
-import br.com.fsferreira.productapi.entities.product.dto.ProductResponseOutput;
+import br.com.fsferreira.productapi.entities.product.dto.*;
 import br.com.fsferreira.productapi.entities.product.model.Product;
 import br.com.fsferreira.productapi.entities.product.repository.ProductRepository;
+import br.com.fsferreira.productapi.entities.sale.client.SaleClient;
+import br.com.fsferreira.productapi.entities.sale.dto.SaleConfirmationDTO;
+import br.com.fsferreira.productapi.entities.sale.enums.SaleStatus;
+import br.com.fsferreira.productapi.entities.sale.rabbitmq.SaleConfirmationSender;
 import br.com.fsferreira.productapi.entities.supplier.service.SupplierService;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import static org.springframework.util.ObjectUtils.isEmpty;
 
 @Service
 public class ProductService {
+
+    Logger logger = LoggerFactory.getLogger(ProductService.class);
 
     @Autowired
     private ProductRepository repository;
@@ -27,6 +38,10 @@ public class ProductService {
     private CategoryService categoryService;
     @Autowired
     private SupplierService supplierService;
+    @Autowired
+    SaleConfirmationSender saleConfirmationSender;
+    @Autowired
+    SaleClient saleClient;
 
     public List<ProductResponseOutput> findAll() {
         return repository.findAll().stream().map(ProductResponseOutput::of).toList();
@@ -88,5 +103,84 @@ public class ProductService {
         TypeValidator.validateUUID(input.getCategoryId(), "Category's id inválid!");
     }
 
+    public void updateProductStock(ProductStockDTO product) {
+        try {
+            validateStockUpdate(product);
+            handleUpdateProductStock(product);
+        } catch (Exception ex) {
+            logger.error("Error on update stock: {}", ex.getMessage(), ex);
+            var rejectedMessage = new SaleConfirmationDTO(product.getSaleId(), SaleStatus.REJECTED);
+            saleConfirmationSender.sendSaleConfirmation(rejectedMessage);
+        }
+    }
 
+    @Transactional
+    private void handleUpdateProductStock(ProductStockDTO product) {
+        var productsForPersist = new ArrayList<Product>();
+        product.getProducts()
+                .forEach(productAmount -> {
+                    var inBaseProduct = findById(productAmount.getProductId());
+                    validateStockInBase(productAmount, inBaseProduct);
+                    var persistProduct = Product.of(inBaseProduct, inBaseProduct.getCategory(), inBaseProduct.getSupplier());
+                    persistProduct.updateStock(productAmount.getAmount());
+                    productsForPersist.add(persistProduct);
+                });
+        if (!productsForPersist.isEmpty()) {
+            repository.saveAll(productsForPersist);
+            var approvedMessage = new SaleConfirmationDTO(product.getSaleId(), SaleStatus.APPROVED);
+            saleConfirmationSender.sendSaleConfirmation(approvedMessage);
+        }
+    }
+
+    private void validateStockUpdate(ProductStockDTO product) {
+        if (isEmpty(product) || isEmpty(product.getSaleId())) {
+            throw new GenericUserException("Payload and saleId cannot be null!");
+        }
+        if (product.getProducts().isEmpty()) {
+            throw new GenericUserException("Sale must contain at least one product!");
+        }
+
+        product.getProducts().forEach(productAmount -> {
+            if (isEmpty(productAmount.getAmount()) || isEmpty(productAmount.getProductId())) {
+                throw new GenericUserException("Product must contain an ID and amount!");
+            }
+        });
+    }
+
+    private void validateStockInBase(ProductAmountDTO productAmount, ProductResponseOutput inBaseProduct) {
+        if (productAmount.getAmount() > inBaseProduct.getAmount()) {
+            throw new GenericUserException(
+                    String.format("The product %s is out of stock", inBaseProduct.getName()));
+        }
+    }
+
+    public ProductSalesResponse findProductSales(@PathVariable String id) {
+        var product = findById(id);
+        try {
+            var sales = saleClient.findSalesByProductId(product.getId().toString())
+                    .orElseThrow(() -> new GenericNotFoundException("No sales found for this product!"));
+            return ProductSalesResponse.of(product, sales.getSalesId());
+        } catch (Exception ex) {
+            throw new GenericServerException("There was an error trying to get product's sales!");
+        }
+    }
+
+    public String checkStock(ProductCheckStockRequest request) {
+        if (isEmpty(request) || isEmpty(request.getProducts())) {
+            throw new GenericUserException("Request payload must be valid!");
+        }
+        request.getProducts().forEach(this::validateStock);
+        return "The stock is valid!";
+    }
+
+    private void validateStock(ProductAmountDTO productAmount) {
+        if (isEmpty(productAmount.getProductId()) || isEmpty(productAmount.getAmount())) {
+            throw new GenericUserException("Product payload must contain ID and amount");
+        }
+        var product = findById(productAmount.getProductId());
+        if (product.getAmount() < productAmount.getAmount()) {
+            throw new GenericUserException(
+                    String.format("The product %s is out of stock", product.getName()));
+        }
+    }
 }
