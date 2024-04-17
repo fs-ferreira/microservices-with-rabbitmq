@@ -3,22 +3,19 @@ import { handleSendProductStockUpdate } from "../../Product/rabbitMq/productStoc
 import * as httpStatus from "../../../config/constants/httpStatus.js"
 import { PENDING } from "../../../config/constants/orderEnum.js";
 import OrderException from "../exceptions/OrderException.js";
+import ProductClient from "../../Product/client/ProductClient.js";
 
 class OrderService {
   async createOrder(req) {
     try {
       const orderData = req.body;
+      this.validateOrderData(orderData)
       const { authUser } = req;
-      let order = {
-        status: PENDING,
-        user: authUser,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        products: orderData
-      }
-      await validateStock(order)
-      let createdOrder = await OrderRepository.save(order)
-      handleSendProductStockUpdate(createdOrder.products)
+      const { authorization } = req.headers;
+      const order = this.setupOrder(authUser, orderData)
+      await this.validateStock(order, authorization)
+      const createdOrder = await OrderRepository.save(order)
+      this.sendMessage(createdOrder)
       return {
         status: httpStatus.SUCCESS,
         createdOrder
@@ -31,6 +28,16 @@ class OrderService {
     }
   }
 
+  setupOrder(authUser, orderData) {
+    return {
+      status: PENDING,
+      user: authUser,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      products: orderData.products
+    }
+  }
+
   validateOrderData(data) {
     if (!data || !data.products) {
       throw new OrderException(httpStatus.BAD_REQUEST, 'At least one product must be informed!')
@@ -40,18 +47,30 @@ class OrderService {
     }
   }
 
-  async validateStock(order){
-    // WIP
-    throw new OrderException(httpStatus.BAD_REQUEST, 'The stock is out of products.')
+  async validateStock(order, token) {
+    console.warn(order);
+    const stockIsValid = await ProductClient.checkProductStock(order.products, token)
+    if (!stockIsValid) {
+      throw new OrderException(httpStatus.BAD_REQUEST, 'The stock is out of products.')
+    }
   }
 
-  async updateOrder(orderMessage){
+  sendMessage(order) {
+    const message = {
+      saleId: order.id,
+      products: order.products
+    }
+    handleSendProductStockUpdate(message)
+  }
+
+  async updateOrder(orderMessage) {
     try {
       const order = JSON.parse(orderMessage)
       this.validateSaleOrder(order)
-      let existingOrder = await OrderRepository.findById(order.salesId)
-      if(existingOrder && order.status !== existingOrder.status){
+      let existingOrder = await OrderRepository.findById(order.saleId)
+      if (existingOrder && order.status !== existingOrder.status) {
         existingOrder.status = order.status;
+        existingOrder.updatedAt = new Date();
         await OrderRepository.save(existingOrder)
       }
     } catch (err) {
@@ -60,9 +79,94 @@ class OrderService {
     }
   }
 
-  validateSaleOrder(order){
-    if(!order.status && !order.status){
-      throw new OrderException(httpStatus.INTERNAL_SERVER_ERROR, 'Order messas is incomplete!')
+  validateSaleOrder(order) {
+    if (!order.status && !order.status) {
+      throw new OrderException(httpStatus.INTERNAL_SERVER_ERROR, 'Order message is incomplete!')
+    }
+  }
+
+  async findAll() {
+    try {
+      const orders = await OrderRepository.find();
+      if (!orders) {
+        throw new OrderException(httpStatus.NOT_FOUND, 'Orders not found!')
+      }
+      return {
+        status: httpStatus.SUCCESS,
+        orders
+      }
+    } catch (err) {
+      return {
+        status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
+        message: err.message
+      }
+    }
+  }
+
+  async findById(req) {
+    try {
+      const { id } = req.params;
+      this.validateId(id)
+      const existingOrder = await OrderRepository.findById(id);
+      if (!existingOrder) {
+        throw new OrderException(httpStatus.NOT_FOUND, 'Order not found!')
+      }
+      return {
+        status: httpStatus.SUCCESS,
+        existingOrder
+      }
+    } catch (err) {
+      return {
+        status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
+        message: err.message
+      }
+    }
+  }
+
+  async findByProductId(req) {
+    try {
+      const { productId } = req.params;
+      this.validateProductId(productId)
+      const orders = await OrderRepository.findByProductId(productId);
+      if (!orders) {
+        throw new OrderException(httpStatus.NOT_FOUND, 'Orders not found!')
+      }
+      return {
+        status: httpStatus.SUCCESS,
+        salesId: orders.map(order => order.id)
+      }
+    } catch (err) {
+      return {
+        status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
+        message: err.message
+      }
+    }
+  }
+
+  validateId(id) {
+    if (!id) {
+      throw new OrderException(httpStatus.BAD_REQUEST, 'Order ID must be informed!')
+    }
+  }
+
+  validateProductId(id) {
+    if (!id) {
+      throw new OrderException(httpStatus.BAD_REQUEST, 'Product ID must be informed!')
+    }
+  }
+
+  async deleteOrders() {
+    try {
+     await OrderRepository.deleteAll();
+      return {
+        status: httpStatus.NO_CONTENT,
+        message: "Orders successfully deleted!"
+      }
+    } catch (err) {
+      return {
+        status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
+        message: err.message
+      }
     }
   }
 

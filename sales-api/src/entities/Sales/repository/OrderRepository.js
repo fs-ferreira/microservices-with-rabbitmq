@@ -29,6 +29,24 @@ class OrderRepository {
     }
   }
 
+  async findByProductId(productId) {
+    try {
+      return await Order.find({ "products.productId": productId })
+    } catch (err) {
+      console.error(err.message);
+      return null;
+    }
+  }
+
+  async deleteAll() {
+    try {
+      return await Order.deleteMany()
+    } catch (err) {
+      console.error(err.message);
+      return null;
+    }
+  }
+
 }
 
 export default new OrderRepository();
