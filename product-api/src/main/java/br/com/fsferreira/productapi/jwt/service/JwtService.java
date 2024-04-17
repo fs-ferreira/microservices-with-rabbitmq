@@ -38,7 +38,7 @@ public class JwtService {
 
 
     private String getToken(String token) {
-        if(token.isEmpty()) {
+        if(token == null || token.isEmpty()) {
             throw new AuthenticationException("The access token is invalid!");
         }
 

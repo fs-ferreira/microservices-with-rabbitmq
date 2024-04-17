@@ -11,10 +11,10 @@ import java.util.Optional;
 @FeignClient(
         name = "saleClient",
         contextId = "saleClient",
-        url = "${app-config.services.sales}"
+        url = "${app-config.services.sale}"
 )
 public interface SaleClient {
 
-    @GetMapping("products/{productId}")
+    @GetMapping("/api/order/product/{productId}")
     Optional<SaleProductResponse> findSalesByProductId(@PathVariable String productId);
 }

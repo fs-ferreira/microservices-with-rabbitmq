@@ -161,6 +161,7 @@ public class ProductService {
                     .orElseThrow(() -> new GenericNotFoundException("No sales found for this product!"));
             return ProductSalesResponse.of(product, sales.getSalesId());
         } catch (Exception ex) {
+            ex.printStackTrace();
             throw new GenericServerException("There was an error trying to get product's sales!");
         }
     }
