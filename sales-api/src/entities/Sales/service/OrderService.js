@@ -4,22 +4,29 @@ import * as httpStatus from "../../../config/constants/httpStatus.js"
 import { PENDING } from "../../../config/constants/orderEnum.js";
 import OrderException from "../exceptions/OrderException.js";
 import ProductClient from "../../Product/client/ProductClient.js";
+import { getRequestMessage, getResponseMessage, postRequestMessage, postResponseMessage } from "../../../config/constants/logMessages.js";
 
 class OrderService {
   async createOrder(req) {
     try {
       const orderData = req.body;
+      const { transactionid, serviceid } = req.headers;
+      console.info(postRequestMessage('createOrder', JSON.stringify(orderData), transactionid, serviceid))
+
       this.validateOrderData(orderData)
       const { authUser } = req;
       const { authorization } = req.headers;
-      const order = this.setupOrder(authUser, orderData)
-      await this.validateStock(order, authorization)
+      const order = this.setupOrder(authUser, orderData, transactionid, serviceid)
+      await this.validateStock(order, authorization, transactionid)
       const createdOrder = await OrderRepository.save(order)
-      this.sendMessage(createdOrder)
-      return {
+      this.sendMessage(createdOrder, transactionid)
+
+      const response = {
         status: httpStatus.SUCCESS,
         createdOrder
-      }
+      };
+      console.info(postResponseMessage('createOrder', JSON.stringify(response), transactionid, serviceid))
+      return response;
     } catch (err) {
       return {
         status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
@@ -28,13 +35,15 @@ class OrderService {
     }
   }
 
-  setupOrder(authUser, orderData) {
+  setupOrder(authUser, orderData, transactionid, serviceid) {
     return {
       status: PENDING,
       user: authUser,
       createdAt: new Date(),
       updatedAt: new Date(),
-      products: orderData.products
+      products: orderData.products,
+      transactionid,
+      serviceid
     }
   }
 
@@ -47,18 +56,18 @@ class OrderService {
     }
   }
 
-  async validateStock(order, token) {
-    console.warn(order);
-    const stockIsValid = await ProductClient.checkProductStock(order.products, token)
+  async validateStock(order, token, transactionid) {
+    const stockIsValid = await ProductClient.checkProductStock(order.products, token, transactionid)
     if (!stockIsValid) {
       throw new OrderException(httpStatus.BAD_REQUEST, 'The stock is out of products.')
     }
   }
 
-  sendMessage(order) {
+  sendMessage(order, transactionid) {
     const message = {
       saleId: order.id,
-      products: order.products
+      products: order.products,
+      transactionid
     }
     handleSendProductStockUpdate(message)
   }
@@ -85,16 +94,21 @@ class OrderService {
     }
   }
 
-  async findAll() {
+  async findAll(req) {
     try {
+      const { transactionid, serviceid } = req.headers;
+      console.info(getRequestMessage('findAll', JSON.stringify('empty'), transactionid, serviceid))
       const orders = await OrderRepository.find();
       if (!orders) {
         throw new OrderException(httpStatus.NOT_FOUND, 'Orders not found!')
       }
-      return {
+
+      const response = {
         status: httpStatus.SUCCESS,
         orders
       }
+      console.info(getResponseMessage('findAll', JSON.stringify(response), transactionid, serviceid))
+      return response;
     } catch (err) {
       return {
         status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
@@ -106,15 +120,20 @@ class OrderService {
   async findById(req) {
     try {
       const { id } = req.params;
+      const { transactionid, serviceid } = req.headers;
+      console.info(getRequestMessage('findById', JSON.stringify(id), transactionid, serviceid))
       this.validateId(id)
       const existingOrder = await OrderRepository.findById(id);
       if (!existingOrder) {
         throw new OrderException(httpStatus.NOT_FOUND, 'Order not found!')
       }
-      return {
+
+      const response = {
         status: httpStatus.SUCCESS,
         existingOrder
       }
+      console.info(getResponseMessage('findById', JSON.stringify(response), transactionid, serviceid))
+      return response
     } catch (err) {
       return {
         status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
@@ -126,15 +145,19 @@ class OrderService {
   async findByProductId(req) {
     try {
       const { productId } = req.params;
+      const { transactionid, serviceid } = req.headers;
+      console.info(getRequestMessage('findById', JSON.stringify(productId), transactionid, serviceid))
       this.validateProductId(productId)
       const orders = await OrderRepository.findByProductId(productId);
       if (!orders) {
         throw new OrderException(httpStatus.NOT_FOUND, 'Orders not found!')
       }
-      return {
+      const response = {
         status: httpStatus.SUCCESS,
         salesId: orders.map(order => order.id)
       }
+      console.info(getResponseMessage('findById', JSON.stringify(response), transactionid, serviceid))
+      return response
     } catch (err) {
       return {
         status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,
@@ -157,7 +180,7 @@ class OrderService {
 
   async deleteOrders() {
     try {
-     await OrderRepository.deleteAll();
+      await OrderRepository.deleteAll();
       return {
         status: httpStatus.NO_CONTENT,
         message: "Orders successfully deleted!"
