@@ -1,4 +1,5 @@
 import * as httpStatus from "../../../config/constants/httpStatus.js"
+import { postRequestMessage, postResponseMessage } from "../../../config/constants/logMessages.js"
 import { API_SECRET } from "../../../config/constants/secrets.js"
 import UserException from "../exceptions/UserException.js"
 import UserRepository from "../repository/UserRepository.js"
@@ -9,6 +10,9 @@ class UserService {
 
   async getAccessToken(req) {
     try {
+      const { transactionid, serviceid } = req.headers;
+      console.info(postRequestMessage('getAccessToken', JSON.stringify(req.body), transactionid, serviceid))
+
       const { email, password } = req.body;
       this.validateAccessRequest(email, password)
       const user = await UserRepository.findByEmail(email)
@@ -17,10 +21,13 @@ class UserService {
       const authUser = { id: user.id, name: user.name, email: user.email }
       const accessToken = jwt.sign({ authUser }, API_SECRET, { expiresIn: '1d' })
 
-      return {
+      const response = {
         status: httpStatus.SUCCESS,
         accessToken
-      }
+      };
+
+      console.info(postResponseMessage('getAccessToken', JSON.stringify(response), transactionid, serviceid))
+      return response;
     } catch (err) {
       return {
         status: err.status ? err.status : httpStatus.INTERNAL_SERVER_ERROR,

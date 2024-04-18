@@ -1,12 +1,13 @@
 import express from "express";
 import router from "./src/modules/user/routes/UserRouter.js";
+import tracing from "./src/config/tracing.js";
 
 const app = express();
 const env = process.env;
 const PORT = env.PORT || 8080;
 
+app.use(tracing)
 app.use(express.json());
-
 
 app.get('/api/status', (req, res) => {
   return res.status(200).json({
